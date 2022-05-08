@@ -1,0 +1,37 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace WA_EsercizioStudente
+{
+    class Studente
+    {
+        [BsonId]
+        public ObjectId Id { get; set; }
+        [BsonElement("matricola")]
+        public String Matricola { get; set; }
+        [BsonElement("nome")]
+        public String Nome { get; set; }
+        [BsonElement("cognome")]
+        public String Cognome { get; set; }
+        [BsonElement("scuola")]
+        public String[] Scuola { get; set; }
+        [BsonElement("esami")]
+        public Esame[] Esami { get; set; }
+
+        public Studente(string matricola, string nome, string cognome, string[] scuola, Esame[] esami)
+        {
+            Matricola = matricola;
+            Nome = nome;
+            Cognome = cognome;
+            Scuola = scuola;
+            Esami = esami;
+        }
+        //Metodo per ritornare il Nome e Cognome di un alunno
+        public string NomeStudente => $"{Nome} {Cognome}";
+    }
+}

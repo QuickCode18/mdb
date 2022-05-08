@@ -1,0 +1,30 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
+namespace WA_EsercizioStudente
+{
+    class Esame
+    {
+        [BsonElement("materia")]
+        public String Materia { get; set; }
+        [BsonElement("voto")]
+        public double Voto { get; set; }
+        [BsonElement("data")]
+        public String Data { get; set; }
+        [BsonElement("edifici")]
+        public String[] Edifici { get; set; }
+
+        public Esame(string materia, double voto, string data, string[] edifici)
+        {
+            Materia = materia;
+            Voto = voto;
+            Data = data;
+            Edifici = edifici;
+        }
+    }
+}

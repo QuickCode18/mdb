@@ -1,0 +1,311 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using MongoDB.Bson;
+using MongoDB.Driver;
+
+namespace WA_EsercizioStudente
+{
+    public partial class EsercizioStudente : Form
+    {
+        static MongoClient client = new MongoClient();
+        static IMongoDatabase db = client.GetDatabase("studentDB");
+        static IMongoCollection<Studente> collection = db.GetCollection<Studente>("studenti");
+
+        public EsercizioStudente()
+        {
+            InitializeComponent();
+            lbxEsami.DisplayMember = "Materia";
+            reloadStudent();
+        }       
+        //Metodo per visualizzare tutti gli studenti nella listbox Alunni.
+        private void reloadStudent()
+        {
+            List<Studente> list = collection.AsQueryable().ToList<Studente>();
+            lbxAlunni.DisplayMember = "NomeStudente";
+            lbxAlunni.DataSource = list;
+            if (lbxAlunni.SelectedIndex >= 0)
+            {
+                loadStudent();
+            }
+        }
+        //Metodo per caricare tutti i dati di uno studente nei vari campi.
+        private void loadStudent()
+        {
+            txtId.Text = (lbxAlunni.SelectedItem as Studente).Id.ToString();
+            txtMatricola.Text = (lbxAlunni.SelectedItem as Studente).Matricola.ToString();
+            txtNome.Text = (lbxAlunni.SelectedItem as Studente).Nome.ToString();
+            txtCognome.Text = (lbxAlunni.SelectedItem as Studente).Cognome.ToString();
+            lbxScuole.Items.Clear();
+            lbxScuole.Items.AddRange((lbxAlunni.SelectedItem as Studente).Scuola);
+            lbxEsami.Items.Clear();
+            foreach (Esame item in (lbxAlunni.SelectedItem as Studente).Esami)
+            {
+                lbxEsami.Items.Add(new Esame(item.Materia, item.Voto, item.Data, item.Edifici));
+            }
+        }
+        //Bottone per inserire tutti I dati nel database e ricaricare la listbox degli alunni.
+        private void btn_Insert_Click(object sender, EventArgs e)
+        {
+            List<String> scuole = new List<String>();
+            foreach (var item in lbxScuole.Items)
+            {
+                scuole.Add(item.ToString());
+            }
+            List<Esame> esami = new List<Esame>();
+            foreach (var item in lbxEsami.Items)
+            {
+                esami.Add(item as Esame);
+            }
+            List<String> edifici = new List<String>();
+            foreach (var item in lbx_Edifici.Items)
+            {
+                edifici.Add(item.ToString());
+            }
+            Studente studente = new Studente(txtMatricola.Text, txtNome.Text, txtCognome.Text, scuole.ToArray(), esami.ToArray());
+            collection.InsertOne(studente);
+            reloadStudent();
+            Cleaner();
+        }
+
+        private void btn_Update_Click(object sender, EventArgs e)
+        {
+            List<String> scuole = new List<String>();
+            foreach (var item in lbxScuole.Items)
+            {
+                scuole.Add(item.ToString());
+            }
+            List<Esame> esami = new List<Esame>();
+            foreach (var item in lbxEsami.Items)
+            {
+                esami.Add(item as Esame);
+            }
+            var updateDef = Builders<Studente>.Update.Set("matricola", txtMatricola.Text).Set("scuola", scuole.ToArray()).Set("nome", txtNome.Text).Set("cognome", txtCognome.Text).Set("esami", esami.ToArray());
+            collection.UpdateOne(student => student.Id == ObjectId.Parse(txtId.Text), updateDef);
+            reloadStudent();
+            Cleaner();
+        }
+
+        private void btn_Delete_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogResult = MessageBox.Show("Sicuro di voler eliminare lo studente selezionato ?", "Attenzione !", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {             
+                if (lbxAlunni.SelectedIndex > -1)
+                {
+                    collection.DeleteOne(student => student.Id == ObjectId.Parse(txtId.Text));
+                    reloadStudent();
+                    Cleaner();
+                }
+                else
+                {
+                    MessageBox.Show("Nessun alunno selezionato.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }       
+        }
+        //Metodo per svuotare i campi.
+        public void CleanerEsami()
+        {
+            txtMateria.Text = "";
+            txtVoto.Text = "";
+            txtData.Text = "";
+            lbx_Edifici.Items.Clear();
+        }
+
+        private void btnInserisciEsame_Click(object sender, EventArgs e)
+        {
+            lbxEsami.DisplayMember = "Materia";
+            List<String> edifici = new List<string>();
+            foreach (var item in lbx_Edifici.Items)
+            {
+                edifici.Add(item.ToString());
+            }
+            lbxEsami.Items.Add(new Esame(txtMateria.Text, double.Parse(txtVoto.Text), txtData.Text, edifici.ToArray()));
+            CleanerEsami();
+        }
+
+        private void btnAggiornaEsame_Click(object sender, EventArgs e)
+        {
+            List<String> edifici = new List<string>();
+            foreach (var item in lbx_Edifici.Items)
+            {
+                edifici.Add(item.ToString());
+            }
+            Esame esame = new Esame(txtMateria.Text, double.Parse(txtVoto.Text), txtData.Text, edifici.ToArray());
+            lbxEsami.Items.Remove(lbxEsami.SelectedItem as Esame);
+            lbxEsami.Items.Add(esame);
+            CleanerEsami();
+        }
+
+        private void btnEliminaEsame_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogResult = MessageBox.Show("Sicuro di voler eliminare l'esame selezionato ?", "Attenzione !", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {                
+                if (lbxEsami.SelectedIndex > -1)
+                {
+                    lbxEsami.Items.Remove(lbxEsami.SelectedItem);
+                    CleanerEsami();
+                }
+                else
+                {
+                    MessageBox.Show("Nessun esame selezionato.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void btnInsertScuola_Click(object sender, EventArgs e)
+        {
+            if (txtScuola.Text != "")
+            {
+                lbxScuole.Items.Add(txtScuola.Text);
+                txtScuola.Text = "";
+            }
+            else
+            {
+                MessageBox.Show("Errore ! La casella Scuola è vuota. Inserisci il nome della scuola prima di continuare.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            
+        }
+
+        private void btnUpdateScuola_Click(object sender, EventArgs e)
+        {
+            if (lbxScuole.SelectedIndex > -1 && txtScuola.Text != "")
+            {
+                string scuola = txtScuola.Text;
+                lbxScuole.Items.Remove(lbxScuole.SelectedItem.ToString());
+                lbxScuole.Items.Add(scuola);
+                txtScuola.Text = "";
+            }
+            else
+            {
+                MessageBox.Show("Nessuna scuola selezionata. Oppure Inserire il nome di una scuola.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }         
+        }
+
+        private void btnDeleteScuola_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogResult = MessageBox.Show("Sicuro di voler eliminare la scuola selezionata ?", "Attenzione !", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {               
+                if (lbxScuole.SelectedIndex > -1)
+                {
+                    lbxScuole.Items.Remove(lbxScuole.SelectedItem.ToString());
+                    txtScuola.Text = "";
+                }
+                else
+                {
+                    MessageBox.Show("Nessuna scuola selezionato.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void lbxEsami_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lbxEsami.SelectedIndex >= 0)
+            {
+                txtMateria.Text = (lbxEsami.SelectedItem as Esame).Materia;
+                txtVoto.Text = (lbxEsami.SelectedItem as Esame).Voto.ToString();
+                txtData.Text = (lbxEsami.SelectedItem as Esame).Data;
+                lbx_Edifici.Items.Clear();
+                lbx_Edifici.Items.AddRange((lbxEsami.SelectedItem as Esame).Edifici);
+            }
+        }
+
+        //Quando si seleziona uno studente mi permette di caricare tutti I dati di quello studente.
+        private void lbxAlunni_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            loadStudent();
+        }
+
+        private void lbxScuole_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lbxScuole.SelectedIndex >= 0)
+            {
+                txtScuola.Text = lbxScuole.SelectedItem.ToString();
+            }
+        }
+
+        private void btnInsertEdifici_Click(object sender, EventArgs e)
+        {
+            if (txtEdificio.Text != "")
+            {
+                lbx_Edifici.Items.Add(txtEdificio.Text);
+                txtEdificio.Text = "";
+            }
+            else
+            {
+                MessageBox.Show("Errore ! La casella Edificio è vuota. Inserisci il nome della scuola prima di continuare.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }         
+        }
+
+        //Bottone per aggiornare un edificio selezionato e svuota la textbox.
+        private void btnUpdateEdifici_Click(object sender, EventArgs e)
+        {           
+            if (lbx_Edifici.SelectedIndex > -1 && txtEdificio.Text != "")
+            {
+                string edificio = txtEdificio.Text;
+                lbx_Edifici.Items.Remove(lbx_Edifici.SelectedItem.ToString());
+                lbx_Edifici.Items.Add(edificio);
+                txtEdificio.Text = "";
+            }
+            else
+            {
+                MessageBox.Show("Nessun edificio selezionato. Oppure Inserire il nome dell'edificio.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        //Bottone per eliminare un edificio selezionato e svuota la textbox.
+        private void btnDeleteEdifici_Click(object sender, EventArgs e)
+        {
+            DialogResult dialogResult = MessageBox.Show("Sicuro di voler eliminare l'edificio selezionato ?", "Attenzione !", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {
+                if (lbx_Edifici.SelectedIndex > -1)
+                {
+                    lbx_Edifici.Items.Remove(lbx_Edifici.SelectedItem.ToString());
+                    txtEdificio.Text = "";
+                }
+                else
+                {
+                    MessageBox.Show("Nessun edificio selezionato.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void lbx_Edifici_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lbx_Edifici.SelectedIndex >= 0)
+            {
+                txtEdificio.Text = lbx_Edifici.SelectedItem.ToString();
+            }
+        }
+        //Bottone per scuotare tutti i campi usando il metodo Cleaner.
+        private void btn_CleanFields_Click(object sender, EventArgs e)
+        {
+            Cleaner();        
+        }
+        //Metodo per ripulire i campi.
+        public void Cleaner()
+        {
+            txtId.Text = "";
+            txtMatricola.Text = "";
+            txtNome.Text = "";
+            txtCognome.Text = "";
+            txtScuola.Text = "";
+            txtMateria.Text = "";
+            txtVoto.Text = "";
+            txtData.Text = "";
+            txtEdificio.Text = "";
+            lbxEsami.Items.Clear();
+            lbxScuole.Items.Clear();
+            lbx_Edifici.Items.Clear();
+        }
+    }
+}
